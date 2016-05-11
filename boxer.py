@@ -1,6 +1,7 @@
 import clusterer
 import dir_helper
 import os
+import os.path
 import operator
 import pickle
 from itertools import combinations
@@ -124,7 +125,9 @@ def score_boxes(boxes, lines, feature_file):
 
     open(feature_file, 'w').close()
 
-  with open('classifier.pkl', 'rb') as f:
+  classifier_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'classifier.pkl')
+
+  with open(classifier_path, 'rb') as f:
     classifier = pickle.load(f)
 
   features = {}
