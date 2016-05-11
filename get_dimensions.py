@@ -19,13 +19,9 @@ cloud_delay = 0
 def run_full_test(image_dir, info_dir):
   images = [img for img in os.listdir(image_dir) if img.endswith('.jpg')]
   run_test(images, image_dir, info_dir)
-  
-def run_test(images, img_dir, info_dir):
-  zoom_prefix = str(zoom_level) + 'x/' if zoom_level > 1 else ''
 
-  for image in images:
-    print('Processing: ' + image)
 
+def run_test_image(image, img_dir, info_dir, zoom_prefix):
     # Get OCR data from the oxford API
     data = oxford_api.get_json_data(image, img_dir, zoom_level, info_dir, oxford_delay)
 
@@ -43,7 +39,7 @@ def run_test(images, img_dir, info_dir):
 
     merged_labels = boxer.merge_ocr_boxes(raw_boxes, [])
 
-    boxes = cloud_api.add_labels(merged_boxes, image_dir + '/' + zoom_prefix, image, info_dir + 'google_cache/' + zoom_prefix, zoom_level, cloud_delay)
+    boxes = cloud_api.add_labels(merged_boxes, img_dir + '/' + zoom_prefix, image, info_dir + 'google_cache/' + zoom_prefix, zoom_level, cloud_delay)
 
     scores = liner.rate_lines(lines, boxes)
 
@@ -53,10 +49,20 @@ def run_test(images, img_dir, info_dir):
 
     rows, cols = score_rows.get_structure(boxes, new_lines)
 
+    return (rows, cols, boxes)
+
+def run_test(images, img_dir, info_dir):
+  zoom_prefix = str(zoom_level) + 'x/' if zoom_level > 1 else ''
+
+  for image in images:
+    print('Processing: ' + image)
+
     # Write to xlsx and json
+    rows, cols, boxes = run_test_image(image, img_dir, info_dir, zoom_prefix)
+
     spreadsheeter.output(rows, cols, boxes, info_dir + 'xlsx' + '/' + zoom_prefix + image + '.xlsx', info_dir + 'json_out' + '/' + zoom_prefix + image + '.json')
 
-  print('Complete')
+    print('Complete')
 
 def get_full_box(image, base_dir):
  height, width, channels = cv2.imread(base_dir + '/' + image).shape 
