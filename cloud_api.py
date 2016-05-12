@@ -15,9 +15,14 @@ def query_google_ocr(image_content):
 
   API_DISCOVERY_FILE = 'https://vision.googleapis.com/$discovery/rest?version=v1'
   http = httplib2.Http()
+  creds_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'google_credentials.json')
+  with open(creds_path) as f:
+      creds_json = f.read()
 
-  credentials = GoogleCredentials.get_application_default().create_scoped(
+  credentials = GoogleCredentials.from_json(creds_json).create_scoped(
       ['https://www.googleapis.com/auth/cloud-platform'])
+
+
   credentials.authorize(http)
 
   service = build('vision', 'v1', http=http, discoveryServiceUrl=API_DISCOVERY_FILE)
