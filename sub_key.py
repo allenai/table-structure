@@ -1,3 +1,2 @@
 def get_key():
-
-  return None
+    raise "KEY NOT CONFIGURED"

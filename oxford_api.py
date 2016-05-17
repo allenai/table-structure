@@ -40,7 +40,7 @@ def get_json_data(image, base_path, zoom_level, pref, sleep_delay):
     conn = None
     try:
       conn = http.client.HTTPSConnection('api.projectoxford.ai', timeout=10)
-      conn.request("POST", "/vision/v1/ocr?%s" % params, img_data, headers)
+      conn.request("POST", "/vision/v1/ocr?%s" % params, body=img_data, headers=headers)
       response = conn.getresponse()
       data = response.read()
       conn.close()
