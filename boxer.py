@@ -1,5 +1,6 @@
 import clusterer
 import dir_helper
+import distance_transform
 import os
 import os.path
 import operator
@@ -9,10 +10,12 @@ from functools import cmp_to_key
 
 should_record_features = False
 
-def get_boxes(data, zoom_level, lines, contour_boxes, feature_file):
+def get_boxes(data, zoom_level, lines, contour_boxes, feature_file, img_base, image):
   raw_boxes = get_boxes_from_json(data, zoom_level)
 
-  combined = combine_boxes(raw_boxes, lines, contour_boxes, feature_file)
+  dist_imgs = distance_transform.get_transform(img_base, image)
+
+  combined = combine_boxes(raw_boxes, lines, contour_boxes, feature_file, dist_imgs)
 
   return combined, raw_boxes
 
@@ -35,9 +38,9 @@ def get_boxes_from_json(data, zoom_level = 1):
 
   return boxes
 
-def combine_boxes(boxes, lines, contour_boxes, feature_file):
+def combine_boxes(boxes, lines, contour_boxes, feature_file, dist_imgs):
   # To use the classifier, do this:
-  box_classifier_scores = score_boxes(boxes, lines, feature_file)
+  box_classifier_scores = score_boxes(boxes, lines, feature_file, dist_imgs)
 
   box_scores = modify_box_scores(boxes, contour_boxes, box_classifier_scores)
 
@@ -116,7 +119,7 @@ def combine_clustered_boxes(clusters):
 
   return new_boxes
 
-def score_boxes(boxes, lines, feature_file):
+def score_boxes(boxes, lines, feature_file, dist_imgs):
   box_scores = [[0.0 for box in boxes] for box in boxes]
 
   # Remove since we're appending for now
@@ -211,6 +214,10 @@ def score_boxes(boxes, lines, feature_file):
     # Distance between bottoms
     features['dist_bw_rights'] = abs((box_1[0] + box_1[2]) - (box_2[0] + box_2[2]))
     features['dist_bw_bottoms'] = abs((box_1[1] + box_1[3]) - (box_2[1] + box_2[3]))
+
+    # Distance transform features
+    features['dist_trans_tb_scaled'] = get_tb_dt(dist_imgs[1], box_1, box_2)
+    features['dist_trans_lr_scaled'] = get_lr_dt(dist_imgs[1], box_1, box_2)
 
     score = get_classifier_score(features, classifier)
     record_features(box_1, box_2, features, feature_file)
@@ -382,8 +389,8 @@ def merge_box_groups(group_1, group_2, threshold, bbox):
 # TODO: Refactor so that everything uses this
 # Maybe move it to a more centralized location
 def box_overlap(box_1, box_2):
-  horiz_over = max(0, min(box_1[0] + box_1[2], box_2[0] + box_2[2]) - max(box_1[0], box_2[0]))
-  vert_over = max(0, min(box_1[1] + box_1[3], box_2[1] + box_2[3]) - max(box_1[1], box_2[1]))
+  horiz_over = max(0, horiz_overlap(box_1, box_2))
+  vert_over = max(0, vert_overlap(box_1, box_2))
 
   overlap_area = horiz_over * vert_over
   min_area = min(box_1[2] * box_1[3], box_2[2] * box_2[3])
@@ -489,3 +496,34 @@ def merge_ocr_boxes(raw_boxes, ai2_boxes, combo=False):
       merged.append(ai2_boxes[i])
 
   return raw_boxes + merged
+
+def get_tb_dt(img, box_1, box_2):
+  if vert_overlap(box_1, box_2) > 0:
+    return -1
+
+  left = min(box_1[0], box_2[0])
+  right = max(box_1[0] + box_1[2], box_2[0] + box_2[2])
+  top = min(box_1[1] + box_1[3], box_2[1], box_2[3])
+  bot = max(box_1[1], box_2[1])
+
+  return max_val(img, left, top, right, bot)
+
+def get_lr_dt(img, box_1, box_2):
+  if horiz_overlap(box_1, box_2) > 0:
+    return -1
+
+  left = min(box_1[0] + box_1[2], box_2[0] + box_2[2])
+  right = max(box_1[0], box_2[0])
+  top = min(box_1[1], box_2[1])
+  bot = max(box_1[1] + box_1[3], box_2[1], box_2[3])
+
+  return max_val(img, left, top, right, bot)
+
+def max_val(img, left, top, right, bot):
+  return img[top:(bot+1), left:(right+1)].max()
+
+def horiz_overlap(box_1, box_2):
+  return min(box_1[0] + box_1[2], box_2[0] + box_2[2]) - max(box_1[0], box_2[0])
+
+def vert_overlap(box_1, box_2):
+  return min(box_1[1] + box_1[3], box_2[1] + box_2[3]) - max(box_1[1], box_2[1])

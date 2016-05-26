@@ -33,11 +33,9 @@ def run_test_image(image, img_dir, info_dir, zoom_prefix):
 
     child_boxes, base_box = get_child_boxes(h_boxes, hierarchy, image, img_dir)
 
-    ocr_boxes, raw_boxes = boxer.get_boxes(data, zoom_level, lines, child_boxes, info_dir + 'combos/features/' + image + '.txt')
+    ocr_boxes, raw_boxes = boxer.get_boxes(data, zoom_level, lines, child_boxes, info_dir + 'combos/features/' + image + '.txt', img_dir + '/' + zoom_prefix, image)
 
     merged_boxes = boxer.merge_box_groups(child_boxes, ocr_boxes, 0.9, base_box)
-
-    merged_labels = boxer.merge_ocr_boxes(raw_boxes, [])
 
     boxes = cloud_api.add_labels(merged_boxes, img_dir + '/' + zoom_prefix, image, info_dir + 'google_cache/' + zoom_prefix, zoom_level, cloud_delay)
 
@@ -70,15 +68,8 @@ def get_full_box(image, base_dir):
  return (0, 0, width, height, '')
 
 def get_child_boxes(h_boxes, hierarchy, image, base_dir):
-  root_boxes = hallucinator.get_root_contours(h_boxes, hierarchy)
-  best_root = hallucinator.get_most_nested(root_boxes, hierarchy, h_boxes)
-
-  if best_root is None:
-    best_rects = h_boxes
-    base_box = get_full_box(image, base_dir)
-  else:
-    best_rects = hallucinator.get_rects(best_root[1], h_boxes)
-    base_box = hallucinator.contour_to_box(best_root[0][1])
+  best_rects = h_boxes
+  base_box = get_full_box(image, base_dir)
 
   return (hallucinator.contours_to_boxes(hallucinator.get_child_contours(best_rects, hierarchy)), base_box)
 
