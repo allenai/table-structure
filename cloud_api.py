@@ -4,8 +4,7 @@ import os
 import cv2
 import base64
 import httplib2
-
-import dir_helper
+import ocr_cache as cache
 
 from apiclient.discovery import build
 from oauth2client.client import GoogleCredentials
@@ -25,10 +24,7 @@ def query_google_ocr(image_content):
 
   credentials.authorize(http)
 
-  service = build('vision', 'v1', http=http, discoveryServiceUrl=API_DISCOVERY_FILE)
-
-  service_request = service.images().annotate(
-    body={
+  request_body = {
       'requests': [{
         'image': {
           'content': image_content
@@ -38,15 +34,37 @@ def query_google_ocr(image_content):
           'maxResults': 1
          }]
        }]
-    })
+    }
 
-  return service_request.execute()
+  version = 'v1'
 
-def get_labels(response, combine=False):
-  if 'textAnnotations' not in response['responses'][0]:
+  cache_prefix = 'google/vision/%s' % version
+  request_body_blob = json.dumps(request_body).encode('utf8')
+
+  response_json = cache.get(cache_prefix, request_body_blob)
+
+  if response_json:
+    return json.loads(response_json.decode('utf8'))
+
+  service = build('vision', version, http=http, discoveryServiceUrl=API_DISCOVERY_FILE)
+  service_request = service.images().annotate(body=request_body)
+
+
+  responses = service_request.execute()['responses']
+
+
+  if 'error' in responses[0]:
+      raise Exception("Received error from Google: %s" % responses[0]['error'])
+
+  cache.put(cache_prefix, request_body_blob, json.dumps(responses).encode('utf8'))
+
+  return responses
+
+def get_labels(responses, combine=False):
+  if 'textAnnotations' not in responses[0]:
     return '' if combine else []
 
-  detections = response['responses'][0]['textAnnotations']
+  detections = responses[0]['textAnnotations']
 
   if combine:
     return detections[0]['description'].replace('\n', ' ').strip()
@@ -70,34 +88,23 @@ def label_boxes(detections):
 def get_cell_label(cache_base, img_base, photo_file, box, zoom, sleep_delay):
   cache_path = cache_base + photo_file + '_' + '_'.join([str(x) for x in box[:4]]) + '.json'
 
-  if os.path.isfile(cache_path):
-    with open(cache_path, 'r') as cache_file:
-      response = json.loads(cache_file.read())
-  else:
-    img = cv2.imread(img_base + photo_file)
-    x1 = zoom * box[0]
-    x2 = x1 + (zoom * box[2])
-    y1 = zoom * box[1]
-    y2 = y1 + (zoom * box[3])
+  img = cv2.imread(img_base + photo_file)
+  x1 = zoom * box[0]
+  x2 = x1 + (zoom * box[2])
+  y1 = zoom * box[1]
+  y2 = y1 + (zoom * box[3])
 
-    cell = img[y1:y2, x1:x2]
+  cell = img[y1:y2, x1:x2]
 
-    retval, cell_buffer = cv2.imencode('.jpg', cell)
+  retval, cell_buffer = cv2.imencode('.jpg', cell)
 
-    image_content = base64.b64encode(cell_buffer).decode()
+  image_content = base64.b64encode(cell_buffer).decode()
 
-    response = query_google_ocr(image_content)
+  responses = query_google_ocr(image_content)
 
-    time.sleep(sleep_delay)
+  time.sleep(sleep_delay)
 
-    if 'responses' in response:
-      dir_helper.ensure(cache_path)
-      with open(cache_path, 'w') as cache_file:
-        json.dump(response, cache_file)
-    else:
-      return ''
-
-  return get_labels(response, combine=True)
+  return get_labels(responses, combine=True)
 
 def add_labels(boxes, image_base, image_path, cache_path, zoom, sleep_delay):
   labeled = []
