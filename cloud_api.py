@@ -89,10 +89,10 @@ def get_cell_label(cache_base, img_base, photo_file, box, zoom, sleep_delay):
   cache_path = cache_base + photo_file + '_' + '_'.join([str(x) for x in box[:4]]) + '.json'
 
   img = cv2.imread(img_base + photo_file)
-  x1 = zoom * box[0]
-  x2 = x1 + (zoom * box[2])
-  y1 = zoom * box[1]
-  y2 = y1 + (zoom * box[3])
+  x1 = int(round(zoom * box[0]))
+  x2 = x1 + int(round(zoom * box[2]))
+  y1 = int(round(zoom * box[1]))
+  y2 = y1 + int(round(zoom * box[3]))
 
   cell = img[y1:y2, x1:x2]
 

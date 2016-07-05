@@ -12,7 +12,6 @@ import hallucinator
 import spreadsheeter
 import cloud_api
 
-zoom_level = 3
 oxford_delay = 5
 cloud_delay = 0
 
@@ -21,7 +20,7 @@ def run_full_test(image_dir, info_dir):
   run_test(images, image_dir, info_dir)
 
 
-def run_test_image(image, img_dir, info_dir, zoom_prefix):
+def run_test_image(image, zoom_level, img_dir, info_dir, zoom_prefix):
     # Get OCR data from the oxford API
     data = oxford_api.get_json_data(image, img_dir, zoom_level, info_dir, oxford_delay)
 
@@ -49,7 +48,7 @@ def run_test_image(image, img_dir, info_dir, zoom_prefix):
 
     return (rows, cols, boxes)
 
-def run_test(images, img_dir, info_dir):
+def run_test(images, zoom_level, img_dir, info_dir):
   zoom_prefix = str(zoom_level) + 'x/' if zoom_level > 1 else ''
 
   for image in images:

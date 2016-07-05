@@ -23,7 +23,9 @@ def get_json_data(image, base_path, zoom_level, pref, sleep_delay):
 
   url = "/vision/v1/ocr?%s" % params
 
-  with open(base_path + '/' + zoom_prefix + image, 'rb') as img_file:
+
+  full_path = base_path + '/' + zoom_prefix + image 
+  with open(full_path, 'rb') as img_file:
     img_data = img_file.read()
 
   cache_prefix = 'oxford' + url
@@ -37,11 +39,13 @@ def get_json_data(image, base_path, zoom_level, pref, sleep_delay):
     conn = http.client.HTTPSConnection('api.projectoxford.ai', timeout=10)
     conn.request("POST", url, body=img_data, headers=headers)
     response = conn.getresponse()
+    body = response.read()
     if response.status == 200:
-        data = response.read()
+        data = body
         cache.put(cache_prefix, img_data, data)
+    else:
+        raise Exception("Error with retrieving Oxford OCR results for %s: %s" % (full_path, body))
 
-    conn.close()
   finally:
     if conn is not None:
       conn.close()
