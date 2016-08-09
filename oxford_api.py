@@ -21,7 +21,7 @@ def get_json_data(image, base_path, zoom_level, pref, sleep_delay):
     
   zoom_prefix = str(zoom_level) + 'x/' if zoom_level > 1 else ''
 
-  url = "/vision/v1/ocr?%s" % params
+  url = "/vision/v1.0/ocr?%s" % params
 
 
   full_path = base_path + '/' + zoom_prefix + image 
