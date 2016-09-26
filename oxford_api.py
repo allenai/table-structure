@@ -1,5 +1,4 @@
 import json
-import time
 import http.client, urllib.request, urllib.parse, urllib.error
 import ocr_cache as cache
 import sub_key
@@ -17,7 +16,7 @@ params = urllib.parse.urlencode({
     'detectOrientation ': 'true',
 })
 
-def get_json_data(image, base_path, zoom_level, pref, sleep_delay):
+def get_json_data(image, base_path, zoom_level, pref):
     
   zoom_prefix = str(zoom_level) + 'x/' if zoom_level > 1 else ''
 
@@ -50,7 +49,5 @@ def get_json_data(image, base_path, zoom_level, pref, sleep_delay):
     if conn is not None:
       conn.close()
       conn = None
-
-  time.sleep(sleep_delay)
 
   return json.loads(data.decode('utf-8')) # Need to double-check if utf-8 is correct

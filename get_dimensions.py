@@ -12,9 +12,6 @@ import hallucinator
 import spreadsheeter
 import cloud_api
 
-oxford_delay = 5
-cloud_delay = 0
-
 def run_full_test(image_dir, info_dir):
   images = [img for img in os.listdir(image_dir) if img.endswith('.jpg')]
   run_test(images, image_dir, info_dir)
@@ -22,7 +19,7 @@ def run_full_test(image_dir, info_dir):
 
 def run_test_image(image, zoom_level, img_dir, info_dir, zoom_prefix):
     # Get OCR data from the oxford API
-    data = oxford_api.get_json_data(image, img_dir, zoom_level, info_dir, oxford_delay)
+    data = oxford_api.get_json_data(image, img_dir, zoom_level, info_dir)
 
     # Extract lines from the image
     lines = liner.get_lines(image, img_dir)
@@ -36,7 +33,7 @@ def run_test_image(image, zoom_level, img_dir, info_dir, zoom_prefix):
 
     merged_boxes = boxer.merge_box_groups(child_boxes, ocr_boxes, 0.9, base_box)
 
-    boxes = cloud_api.add_labels(merged_boxes, img_dir + '/' + zoom_prefix, image, info_dir + 'google_cache/' + zoom_prefix, zoom_level, cloud_delay)
+    boxes = cloud_api.add_labels(merged_boxes, img_dir + '/' + zoom_prefix, image, zoom_level)
 
     scores = liner.rate_lines(lines, boxes)
 

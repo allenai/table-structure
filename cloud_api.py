@@ -1,9 +1,9 @@
 import json
-import time
 import os
 import cv2
 import base64
 import httplib2
+import numpy as np
 import ocr_cache as cache
 
 from apiclient.discovery import build
@@ -85,8 +85,7 @@ def label_boxes(detections):
 
   return boxes
 
-def get_cell_label(cache_base, img_base, photo_file, box, zoom, sleep_delay):
-  cache_path = cache_base + photo_file + '_' + '_'.join([str(x) for x in box[:4]]) + '.json'
+def get_cell_label(img_base, photo_file, box, zoom):
 
   img = cv2.imread(img_base + photo_file)
   x1 = int(round(zoom * box[0]))
@@ -102,14 +101,12 @@ def get_cell_label(cache_base, img_base, photo_file, box, zoom, sleep_delay):
 
   responses = query_google_ocr(image_content)
 
-  time.sleep(sleep_delay)
-
   return get_labels(responses, combine=True)
 
-def add_labels(boxes, image_base, image_path, cache_path, zoom, sleep_delay):
+def add_labels(boxes, image_base, image_path, zoom):
   labeled = []
   for box in boxes:
-    label = get_cell_label(cache_path, image_base, image_path, box, zoom, sleep_delay)
+    label = get_cell_label(image_base, image_path, box, zoom)
     labeled.append((box[0], box[1], box[2], box[3], [label]))
 
   return labeled
