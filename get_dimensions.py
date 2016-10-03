@@ -11,10 +11,25 @@ import liner
 import hallucinator
 import spreadsheeter
 import cloud_api
+import hough_boxes
 
 def run_full_test(image_dir, info_dir):
   images = [img for img in os.listdir(image_dir) if img.endswith('.jpg')]
   run_test(images, image_dir, info_dir)
+
+
+def run_image_hough(image, zoom_level, img_dir, info_dir, zoom_prefix):
+    print('test boxes')
+
+    h_boxes = hough_boxes.get_boxes(image, img_dir)
+
+    boxes = cloud_api.add_labels(h_boxes, img_dir + '/' + zoom_prefix, image, zoom_level)
+
+    new_lines = ([],[])
+
+    rows, cols = score_rows.get_structure(boxes, new_lines)
+
+    return (rows, cols, boxes)
 
 
 def run_test_image(image, zoom_level, img_dir, info_dir, zoom_prefix):
