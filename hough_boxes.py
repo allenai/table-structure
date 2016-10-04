@@ -1,6 +1,5 @@
 import cv2
 import numpy as np
-import requests
 import os.path
 import base64
 
