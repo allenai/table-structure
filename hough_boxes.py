@@ -1,12 +1,12 @@
 import cv2
 import numpy as np
 import os.path
-import base64
+from collections import defaultdict
 
 def ik(x, y):
     return '.'.join([str(x), str(y)])
 
-def boxes_from_intersections(h_intersections, v_intersections, all_intersections):
+def boxes_from_intersections(image_bw, h_intersections, v_intersections, all_intersections):
     boxes = []
     for x_i, y_i in all_intersections:
         i_key = ik(x_i, y_i)
@@ -23,16 +23,20 @@ def boxes_from_intersections(h_intersections, v_intersections, all_intersections
                 found_point = True
 
         if found_point:
-            # need to fill in text
             # x, y, width, height, text
-            boxes.append((x_i, y_i, nearest_x - x_i, nearest_y - y_i, []))
+            height = nearest_y - y_i
+            width = nearest_x - x_i
+            avg_color = (np.average(image_bw[y_i:nearest_y, x_i:nearest_x]))
+            if (width <= 15 or height <= 15) and avg_color == 0.0:
+                continue
+            boxes.append((x_i, y_i, width, height, []))
 
     return boxes
 
 def get_intersections(img, horiz_lines, vert_lines):
-    h_intersections = {}
-    v_intersections = {}
-    all_intersections = []
+    h_intersections = defaultdict(set)
+    v_intersections = defaultdict(set)
+    all_intersections = set()
 
     for h_x1, h_y1, h_x2, h_y2 in horiz_lines:
         intersect_set = set()
@@ -40,10 +44,11 @@ def get_intersections(img, horiz_lines, vert_lines):
             if v_x1 >= h_x1 and v_x1 <= h_x2 and v_y1 <= h_y1 and v_y2 >= h_y1:
                 i_key = ik(v_x1, h_y1)
                 intersect_set.add(i_key)
-                all_intersections.append((v_x1, h_y1))
 
-        for s in intersect_set:
-            h_intersections[s] = intersect_set
+        if len(intersect_set) > 2:
+            for s in intersect_set:
+                all_intersections.add(tuple(map(int, s.split('.'))))
+                h_intersections[s] = intersect_set
 
     for v_x1, v_y1, v_x2, v_y2 in vert_lines:
         intersect_set = set()
@@ -51,10 +56,13 @@ def get_intersections(img, horiz_lines, vert_lines):
             if v_x1 >= h_x1 and v_x1 <= h_x2 and v_y1 <= h_y1 and v_y2 >= h_y1:
                 i_key = ik(v_x1, h_y1)
                 intersect_set.add(i_key)
-        for s in intersect_set:
-            v_intersections[s] = intersect_set
 
-    return h_intersections, v_intersections, all_intersections
+        if len(intersect_set) > 2:
+            for s in intersect_set:
+                all_intersections.add(tuple(map(int, s.split('.'))))
+                v_intersections[s] = intersect_set
+
+    return h_intersections, v_intersections, list(all_intersections)
 
 def supress_lines(lines):
     new_lines = []
@@ -96,6 +104,9 @@ def get_boxes(image_name, base_path):
 
     edges = cv2.Canny(gray, 50, 250, apertureSize=3)
     lines = cv2.HoughLinesP(edges, 1, np.pi / 180, 200, minLineLength=20, maxLineGap=3)
+    if lines is None:
+        lines = []
+
     for info in lines:
         x1, y1, x2, y2 = info[0]
         if y2 < y1:
@@ -105,9 +116,15 @@ def get_boxes(image_name, base_path):
         # horizontal line
         offsets = [-1, 0, 1]
         if y1 - y2 == 0:
+            avg_above = avg_below = 256
             avg_center = np.average(gray[y1:y2 + 1, x1:x2 + 1])
-            avg_above = np.average(gray[y1 - 1:y2, x1:x2 + 1])
-            avg_below = np.average(gray[y1 + 1:y2 + 2, x1:x2 + 1])
+
+            if y1 > 0:
+                avg_above = np.average(gray[y1 - 1:y2, x1:x2 + 1])
+
+            if y2 + 1 < gray.shape[0]:
+                avg_below = np.average(gray[y1 + 1:y2 + 2, x1:x2 + 1])
+
             # assuming black lines, could do something to check for background color
 
             # this occurs from edges detected in gray areas that aren't cell boundaries
@@ -115,6 +132,7 @@ def get_boxes(image_name, base_path):
                 continue
 
             y1 += offsets[np.argmin([avg_above, avg_center, avg_below])]
+
             y2 = y1
 
             while x2 + 1 < im_bw.shape[1] and abs(im_bw[y1:y2 + 1, x2 + 1:x2 + 2][0,0] - np.average(im_bw[y1:y2 + 1, x1:x2 + 1])) < 16:
@@ -125,10 +143,17 @@ def get_boxes(image_name, base_path):
 
             horiz_lines.append((x1, y1, x2, y2))
         elif x1 - x2 == 0:
+            avg_right = avg_left = 256
             avg_center = np.average(gray[y1:y2 + 1, x1:x2 + 1])
-            avg_right = np.average(gray[y1:y2 + 1, x1 + 1: x2 + 2])
-            avg_left = np.average(gray[y1:y2 + 1, x1 - 1:x2])
+
+            if x1 > 0:
+                avg_left = np.average(gray[y1:y2 + 1, x1 - 1:x2])
+
+            if x2 + 1 < gray.shape[1]:
+                avg_right = np.average(gray[y1:y2 + 1, x1 + 1: x2 + 2])
+
             x1 += offsets[np.argmin([avg_left, avg_center, avg_right])]
+
             x2 = x1
 
             while y2 + 1 < im_bw.shape[0] and abs(im_bw[y2 + 1:y2 + 2, x1:x2 + 1][0,0] - np.average(im_bw[y1:y2 + 1, x1:x2 + 1])) < 16:
@@ -145,5 +170,4 @@ def get_boxes(image_name, base_path):
     sorted_h_lines = sorted(horiz_lines, key=lambda l: l[1])
     sorted_v_lines = sorted(vert_lines, key=lambda l: l[0])
     h_intersections, v_intersections, all_intersections = get_intersections(img, sorted_h_lines, sorted_v_lines)
-
-    return boxes_from_intersections(h_intersections, v_intersections, all_intersections)
+    return boxes_from_intersections(im_bw, h_intersections, v_intersections, all_intersections)
