@@ -12,6 +12,10 @@ import hallucinator
 import spreadsheeter
 import cloud_api
 import hough_boxes
+MAX_BOXES = 150
+
+class TableStructureException(Exception):
+    pass
 
 def run_full_test(image_dir, info_dir):
   images = [img for img in os.listdir(image_dir) if img.endswith('.jpg')]
@@ -19,9 +23,11 @@ def run_full_test(image_dir, info_dir):
 
 
 def run_image_hough(image, zoom_level, img_dir, info_dir, zoom_prefix):
-    print('test boxes')
 
     h_boxes = hough_boxes.get_boxes(image, img_dir)
+
+    if len(h_boxes) > MAX_BOXES:
+        raise TableStructureException("total number of boxes exceeds limit of %s" % MAX_BOXES)
 
     boxes = cloud_api.add_labels(h_boxes, img_dir + '/' + zoom_prefix, image, zoom_level)
 
