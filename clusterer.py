@@ -37,6 +37,7 @@ def cluster_scores(score_matrix, threshold):
 
   return clusters
 
+
 def newer_cluster_scores(score_matrix, threshold):
   # Start with a set of all boxes
   # Then, for any given pair in that set that's not likely to
@@ -48,6 +49,7 @@ def newer_cluster_scores(score_matrix, threshold):
   to_check = deque([frozenset(range(len(score_matrix)))])
   finalized = set()
   cache = set()
+
 
   while len(to_check) > 0:
     cluster = to_check.pop()
@@ -61,13 +63,13 @@ def newer_cluster_scores(score_matrix, threshold):
         split_1 = cluster.difference([comb[0]])
         split_2 = cluster.difference([comb[1]])
 
-        if split_1 not in cache:
+        if hash(split_1) not in cache:
           to_check.append(split_1)
-          cache.add(split_1)
+          cache.add(hash(split_1))
 
-        if split_2 not in cache:
+        if hash(split_2) not in cache:
           to_check.append(split_2)
-          cache.add(split_2)
+          cache.add(hash(split_2))
 
         break
 
